@@ -136,4 +136,31 @@ class PagamentoController extends Controller
                 : 'Falha ao reenviar o recibo. Tente novamente.',
         ]);
     }
+
+    private function calcularValor(Emprestimo $emprestimo, ?int $multaId): float
+    {
+        $valorTotal = 0.0;
+
+        if ($multaId) {
+            $multa = Multa::find($multaId);
+            if ($multa && $multa->status === 'pendente') {
+                $valorTotal += (float) $multa->valor;
+            }
+        }
+
+        if ($emprestimo->status === 'aberto' || $emprestimo->status === 'atrasado') {
+            $dataAluguel = \Carbon\Carbon::parse($emprestimo->data_aluguel);
+            
+            $dataBaseDevolucao = $emprestimo->data_devolucao_real 
+                ? \Carbon\Carbon::parse($emprestimo->data_devolucao_real) 
+                : now();
+
+            $dias = $dataAluguel->diffInDays($dataBaseDevolucao);
+            $diasCobrados = $dias > 0 ? $dias : 1;
+
+            $valorTotal += $diasCobrados * (float) $emprestimo->valor_diario;
+        }
+
+        return $valorTotal;
+    }
 }
